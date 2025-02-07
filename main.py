@@ -8,7 +8,7 @@ import os
 from config import OPENAI_API_KEY, UI_CONFIG
 from resume_processor import ResumeProcessor
 from question_generator import QuestionGenerator
-
+from resume_processor import ResumeProcessor, SimpleMarkdownText
 
 class ModernInterviewGeneratorUI:
     def __init__(self):
@@ -297,26 +297,14 @@ class ModernInterviewGeneratorUI:
         )
         text_widget.pack(fill="both", expand=True)
 
-        # Process and insert content with formatting
-        lines = simplified.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line:
-                if line.endswith(':'):
-                    text_widget.insert(tk.END, f"\n{line}\n", "bold")
-                elif line.startswith('•') or line.startswith('-'):
-                    text_widget.insert(tk.END, f"  • {line[1:].strip()}\n")
-                else:
-                    text_widget.insert(tk.END, f"{line}\n")
+        # Insert plain text content
+        text_widget.insert(tk.END, simplified)
 
         # Make read-only
         text_widget.configure(state="disabled")
 
         # Bind window close event
-        self.simplified_resume_window.protocol(
-            "WM_DELETE_WINDOW",
-            self.on_popup_close
-        )
+        self.simplified_resume_window.protocol("WM_DELETE_WINDOW", self.on_popup_close)
 
     def on_popup_close(self):
         """Handle popup window closing"""
