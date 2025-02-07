@@ -6,7 +6,7 @@ import pytz
 from tkinter import filedialog
 import os
 from config import OPENAI_API_KEY, UI_CONFIG
-from resume_processor import ResumeProcessor
+from resume_matcher import ResumeJobMatcher
 from question_generator import QuestionGenerator
 from resume_processor import ResumeProcessor
 
@@ -15,6 +15,8 @@ class ModernInterviewGeneratorUI:
         self.setup_window()
         self.setup_components()
         self.initialize_processors()
+        self.resume_matcher = ResumeJobMatcher(OPENAI_API_KEY)  # Pass the API key
+        self.simplified_resume_text = None
 
     def setup_window(self):
         """Initialize main window and configure appearance"""
@@ -198,6 +200,42 @@ class ModernInterviewGeneratorUI:
 
     def setup_output_section(self):
         """Setup output display section"""
+
+        self.match_frame = ctk.CTkFrame(
+            self.content_frame,
+            fg_color=UI_CONFIG['DARK_BG'],
+            corner_radius=10
+        )
+        self.match_frame.pack(fill="x", pady=(0, 10))
+
+        # Match indicator label
+        self.match_label = ctk.CTkLabel(
+            self.match_frame,
+            text="Resume Match:",
+            font=(UI_CONFIG['FONT_FAMILY'], 14, "bold")
+        )
+        self.match_label.pack(side="left", padx=20, pady=10)
+
+        # Match percentage label
+        self.match_percentage = ctk.CTkLabel(
+            self.match_frame,
+            text="",
+            font=(UI_CONFIG['FONT_FAMILY'], 14, "bold")
+        )
+        self.match_percentage.pack(side="left", padx=5, pady=10)
+
+        # Match level indicator
+        self.match_level = ctk.CTkLabel(
+            self.match_frame,
+            text="",
+            font=(UI_CONFIG['FONT_FAMILY'], 12),
+            width=120,
+            height=28,
+            corner_radius=14
+        )
+        self.match_level.pack(side="left", padx=20, pady=10)
+
+
         self.output_frame = ctk.CTkFrame(
             self.content_frame,
             fg_color=UI_CONFIG['DARK_BG'],
@@ -227,6 +265,60 @@ class ModernInterviewGeneratorUI:
         )
         self.root.update()
 
+    def update_match_indicator(self):
+        """Update the match indicator based on current resume and job description"""
+        if not self.simplified_resume_text:
+            return
+
+        job_description = self.jd_input.get("1.0", tk.END).strip()
+        if not job_description:
+            return
+
+        try:
+            # Show loading state
+            self.match_percentage.configure(
+                text="Analyzing...",
+                text_color="white"
+            )
+            self.match_level.configure(
+                text="LOADING",
+                fg_color="#666666",  # Grey color for loading
+                text_color="white"
+            )
+            self.root.update()
+
+            match_percentage, match_level = self.resume_matcher.calculate_match(
+                self.simplified_resume_text,
+                job_description
+            )
+
+            # Update percentage
+            self.match_percentage.configure(
+                text=f"{match_percentage:.1f}%",
+                text_color="white"
+            )
+
+            # Update level indicator
+            self.match_level.configure(
+                text=match_level.upper(),
+                fg_color=UI_CONFIG['MATCH_COLORS'][match_level],
+                text_color="white"
+            )
+
+        except Exception as e:
+            print(f"Error updating match indicator: {str(e)}")
+            self.match_percentage.configure(
+                text="Error",
+                text_color=UI_CONFIG['ERROR_COLOR']
+            )
+            self.match_level.configure(
+                text="ERROR",
+                fg_color="#666666",
+                text_color="white"
+            )
+        finally:
+            self.root.update()
+
     def upload_resume(self):
         """Handle resume upload and processing"""
         file_path = filedialog.askopenfilename(
@@ -247,8 +339,11 @@ class ModernInterviewGeneratorUI:
             )
 
             if simplified:
+                self.simplified_resume_text = simplified  # Store the processed text
                 self.update_status(f"Uploaded: {filename}", "success")
                 self.view_resume_button.configure(state="normal")
+                # Update match if job description exists
+                self.update_match_indicator()
             else:
                 self.update_status("Error processing resume", "error")
                 self.view_resume_button.configure(state="disabled")
@@ -314,6 +409,8 @@ class ModernInterviewGeneratorUI:
 
     def generate_question(self):
         """Generate interview questions based on job description"""
+
+        self.update_match_indicator()
         job_description = self.jd_input.get("1.0", tk.END).strip()
         if not job_description:
             self.qa_output.delete("1.0", tk.END)
