@@ -8,7 +8,7 @@ import os
 from config import OPENAI_API_KEY, UI_CONFIG
 from resume_processor import ResumeProcessor
 from question_generator import QuestionGenerator
-from resume_processor import ResumeProcessor, SimpleMarkdownText
+from resume_processor import ResumeProcessor
 
 class ModernInterviewGeneratorUI:
     def __init__(self):
