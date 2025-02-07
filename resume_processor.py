@@ -1,9 +1,8 @@
 """Module for handling resume processing with improved markdown display"""
 import json
-import os
 from openai import OpenAI
 from typing import Optional, Callable
-from datetime import datetime
+
 from rich.console import Console
 import tkinter as tk
 import tkinter.font as tkfont
@@ -37,15 +36,37 @@ class SimpleMarkdownText(tkscroll.ScrolledText):
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
+    '''
+        def display_text(self, content: str) -> None:
+            """Display plain text content using the enhanced text widget"""
+            if not self.root:
+                self._setup_gui()
+
+            if self.text_widget:
+                self.text_widget.delete(1.0, tk.END)
+                self.text_widget.insert(tk.END, content)
+                self.root.mainloop()
+    '''
+
+
     def display_text(self, content: str) -> None:
-        """Display plain text content using the enhanced text widget"""
+        """Display markdown content using the enhanced markdown widget"""
         if not self.root:
             self._setup_gui()
 
         if self.text_widget:
             self.text_widget.delete(1.0, tk.END)
+
+
+
+
+            content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)  # Bold
+            content = re.sub(r'## (.*?)\n', r'<h2>\1</h2>\n', content)  # Headers
+            content = re.sub(r'\* (.*?)\n', r'<li>\1</li>\n', content)  # Lists
+
             self.text_widget.insert(tk.END, content)
             self.root.mainloop()
+
 
 class ResumeProcessor:
     def __init__(self, api_key: str, output_dir: str = "resume_outputs"):
@@ -126,37 +147,11 @@ class ResumeProcessor:
                     messages=[
                         {
                             "role": "system",
-                            "content": """You are a helpful resume analyzer. Format your response using proper markdown with specific formatting requirements:
-
-    1. All section headers must be formatted with both ## and wrapped in ** for bold:
-       Example: ## **Section Header**
-
-    2. Use bold text with double asterisks for emphasis:
-       Example: **Important text**
-
-    3. Use proper list formatting:
-       * Use asterisks for bullet points
-       * Indent sub-points properly
-
-    Use this exact format:
-
-    ## **Professional Summary**
-    [Summary with **bold** key points]
-
-    ## **Education**
-    [Education details with **bold** institutions]
-
-    ## **Skills**
-    * **Technical Skills**: [List of skills]
-    * **Soft Skills**: [List of skills]
-
-    ## **Experience Analysis**
-    [Analysis with **bold** company names and positions]
-    """
+                            "content": "You are a helpful resume analyzer."
                         },
                         {
                             "role": "user",
-                            "content": f"Analyze this resume text and format the response exactly as shown in the example: {chunk}"
+                            "content": f"Analyze this resume text and format the response : {chunk}"
                         }
                     ],
                     temperature=0.7,
@@ -190,15 +185,23 @@ class ResumeProcessor:
         self.markdown_text = SimpleMarkdownText(main_frame, width=80, height=30, font=default_font)
         self.markdown_text.pack(fill="both", expand=True)
 
-    def display_markdown(self, content: str) -> None:
-        """Display markdown content using the enhanced markdown widget"""
-        if not self.root:
-            self._setup_gui()
+    '''
+        def display_markdown(self, content: str) -> None:
+            """Display markdown content using the enhanced markdown widget"""
+            if not self.root:
+                self._setup_gui()
 
-        if self.markdown_text:
-            self.markdown_text.delete(1.0, tk.END)
-            self.markdown_text.insert_markdown(content)
-            self.root.mainloop()
+            if self.markdown_text:
+                self.markdown_text.delete(1.0, tk.END)
+
+                # Transform content to markdown
+                content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)  # Bold
+                content = re.sub(r'## (.*?)\n', r'<h2>\1</h2>\n', content)  # Headers
+                content = re.sub(r'\* (.*?)\n', r'<li>\1</li>\n', content)  # Lists
+
+                self.markdown_text.insert(tk.END, content)
+                self.root.mainloop()
+    '''
 
     def _get_cached(self, pdf_path: str) -> Optional[str]:
         """Get cached analysis result"""
