@@ -19,4 +19,10 @@ UI_CONFIG = {
     'DISABLED_COLOR': '#888888',
     'BUTTON_HEIGHT': 40,
     'FONT_FAMILY': 'Roboto',
+    'MATCH_COLORS': {
+        'high': '#4CAF50',          # Green
+        'moderately high': '#8BC34A',  # Light Green
+        'moderate': '#FFC107',      # Amber
+        'low': '#FF5722',          # Deep Orange
+    },
 }
