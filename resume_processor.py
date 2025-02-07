@@ -154,7 +154,7 @@ class ResumeProcessor:
                             "content": f"Analyze this resume text and format the response : {chunk}"
                         }
                     ],
-                    temperature=0.7,
+                    temperature=0.2,
                     max_tokens=1500
                 )
                 analyzed_text = response.choices[0].message.content.strip()
