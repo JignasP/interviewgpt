@@ -11,15 +11,10 @@ class QuestionGenerator:
     def generate_questions(self, job_description: str) -> Optional[str]:
         """Generate interview questions based on job description"""
         try:
-            prompt = f"""Give  3 {self.difficulty_level} questions for interview question for the given Job/product description,
+            prompt = f"""Give  any 3 {self.difficulty_level} questions for interview question for the given Job/product description,
             and a simple answer which can be understood by a non technical hr. 
             Job Description: {job_description}
-            Provide the response in this exact format:
-            Question:
-            <question content>
 
-            Answer:
-            <answer content> 
             """
 
             response = self.client.chat.completions.create(
@@ -27,7 +22,8 @@ class QuestionGenerator:
                 messages=[
                     {"role": "system", "content": "You are a helpful interview question generator."},
                     {"role": "user", "content": prompt}
-                ]
+                ],
+                temperature=1.5
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
