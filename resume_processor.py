@@ -9,13 +9,21 @@ import tkinter as tk
 import tkinter.font as tkfont
 import tkinter.scrolledtext as tkscroll
 import re
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 class SimpleMarkdownText(tkscroll.ScrolledText):
-    """Enhanced Markdown display widget"""
+    """Enhanced text display widget"""
 
-    def __init__(self, api_key: str, output_dir: str = "resume_outputs"):
+    def __init__(self, parent, output_dir: str = "resume_outputs"):
         """Initialize the resume processor with OpenAI API key"""
-        self.client = OpenAI(api_key=api_key)
+        super().__init__(parent)
+        self.client = OpenAI(api_key=OPENAI_API_KEY)
         self.cache_file = os.path.join(os.path.expanduser("~"), ".resume_cache.json")
         self.output_dir = output_dir
         self.user_login = "JignasP"  # Current user's login
@@ -24,80 +32,20 @@ class SimpleMarkdownText(tkscroll.ScrolledText):
 
         # Initialize Tkinter window and widgets
         self.root = None
-        self.markdown_text = None
+        self.text_widget = None
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    def display_markdown(self, content: str) -> None:
-        """Display markdown content using the enhanced markdown widget"""
+    def display_text(self, content: str) -> None:
+        """Display plain text content using the enhanced text widget"""
         if not self.root:
             self._setup_gui()
 
-        if self.markdown_text:
-            self.markdown_text.delete(1.0, tk.END)
-
-            # Format the content as proper markdown with clear section headers
-            formatted_content = "# Resume Analysis\n\n"
-
-            # Split the content by sections and format each
-            sections = content.split('\n')
-            for section in sections:
-                if section.startswith('**') and ':' in section:
-                    # Convert the section header to proper markdown format
-                    header = section.split(':')[0].strip('*')
-                    content = section.split(':', 1)[1].strip()
-                    formatted_content += f"## **{header}**\n{content}\n\n"
-                else:
-                    formatted_content += f"{section}\n"
-
-            self.markdown_text.insert_markdown(formatted_content)
+        if self.text_widget:
+            self.text_widget.delete(1.0, tk.END)
+            self.text_widget.insert(tk.END, content)
             self.root.mainloop()
-
-    def insert_bullet(self, position, text):
-        self.insert(position, f"\u2022 {text}", "bullet")
-
-    def insert_numbered(self, position, text):
-        self.insert(position, f"{self.numbered_index}. {text}", "numbered")
-        self.numbered_index += 1
-
-    def insert_markdown(self, mkd_text):
-        """Enhanced markdown parser"""
-        current_text = ""
-
-        for line in mkd_text.split("\n"):
-            if line == "":
-                self.numbered_index = 1
-                self.insert("end", "\n")
-                continue
-
-            # Handle headers with bold text
-            if line.startswith("## **"):
-                line = line.replace("## **", "").replace("**", "")
-                self.insert("end", line, "##")
-                self.insert("end", "\n")
-                continue
-
-            # Handle headers
-            if line.startswith("#"):
-                tag = re.match(r"(#+) (.*)", line)
-                if tag:
-                    line = tag.group(2)
-                    self.insert("end", line, tag.group(1))
-                    self.insert("end", "\n")
-                continue
-
-            # Handle bold text
-            parts = re.split(r"(\*\*.*?\*\*)", line)
-            for part in parts:
-                if part.startswith("**") and part.endswith("**"):
-                    # Remove the ** and apply bold tag
-                    text = part[2:-2]
-                    self.insert("end", text, "**")
-                else:
-                    self.insert("end", part)
-
-            self.insert("end", "\n")
 
 class ResumeProcessor:
     def __init__(self, api_key: str, output_dir: str = "resume_outputs"):
