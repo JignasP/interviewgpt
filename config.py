@@ -25,4 +25,8 @@ UI_CONFIG = {
         'moderate': '#FFC107',      # Amber
         'low': '#FF5722',          # Deep Orange
     },
+    'FEEDBACK_BG': '#262626',  # Slightly lighter than DARK_BG
+    'FEEDBACK_TEXT': '#e0e0e0',  # Light grey for feedback text
+    'FEEDBACK_HEIGHT': 100,  # Height of the feedback section
+
 }
