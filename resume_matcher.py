@@ -13,6 +13,7 @@ class ResumeJobMatcher:
         try:
             prompt = f"""Compare the candidate's resume and job description, how likely it is that he could be hired based on an educated prediction and if the resume has similar skills to thatof the resume also make shure to consider how well can the aplicant do the required job.Based on that provide a score . and provide specific feedback.
 
+            
             Job Description:
             {job_description}
 
@@ -24,21 +25,22 @@ class ResumeJobMatcher:
                 "percentage": <number between 0-100>,
                 "level": "<either 'high', 'moderately high', 'moderate', or 'low'>",
                 "explanation": "<brief explanation of the match>",
-                "drawbacks": [
+                "Discrepancies": [
                     "<drawback 1>",
                     "<drawback 2>",
                     "..."
                 ],
-                "improvement_areas": [
-                    "<improvement suggestion 1>",
-                    "<improvement suggestion 2>",
+                "Skills": [
+                    "<Additional skill 1>",
+                    "<Additional skill 2>",
                     "..."
-                ]
+                ],
+                
             }}
-            - Any similarity in skills, education, certifications, and experience between the candidate and the job description should  boost the percentage. *Even slight matches should be given considerable weight*.
-            - *Assume the candidate possesses a strong ability to learn quickly and adapt to the job requirements.  This is a KEY factor in raising the percentage.  Actively seek out evidence of learning agility in the resume (e.g., diverse experiences, projects demonstrating initiative, mention of learning new tools/technologies).*
-            - If even two requirement matches, the percentage should be in the moderately  range or higher.
-            - *In the explanation, focus on the candidate's strengths and potential, even if they require some interpretation. Frame any gaps in experience as opportunities for growth and learning.*
+            - Any similarity in skills, education, certifications, and experience between the candidate and the job description should effect *significantly* the percentage as it is the most cruticial part ,* if candidate has lesser than required experience it should decrease the percentage by atleast 10 or higher* .
+            - Actively seek out evidence of learning agility in the resume (e.g., diverse experiences, projects demonstrating initiative, mention of learning new tools/technologies).
+            - If even few requirement matches, the percentage should be in the moderately good.
+            - In the explanation, focus on the candidate's strengths and potential, even if they require some interpretation. Frame any gaps in experience as opportunities for growth and learning.
             """
 
             response = self.client.chat.completions.create(
@@ -50,7 +52,7 @@ class ResumeJobMatcher:
                     },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0
+                temperature=0.0
             )
 
             response_text = response.choices[0].message.content.strip()
@@ -75,12 +77,12 @@ class ResumeJobMatcher:
                     level = "low"
 
             feedback = {
-                "drawbacks": result.get("drawbacks", []),
-                "improvement_areas": result.get("improvement_areas", [])
+                "Discrepancies": result.get("Discrepancies", []),
+                "Skills": result.get("Skills", [])
             }
 
             return percentage, level, feedback
 
         except Exception as e:
             print(f"Error calculating match: {str(e)}")
-            return 0.0, "low", {"drawbacks": [], "improvement_areas": []}
+            return 0.0, "low", {"Discrepancies": [], "Skills": []}
