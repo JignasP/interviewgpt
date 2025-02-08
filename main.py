@@ -1,9 +1,9 @@
 """Main application file"""
 import tkinter as tk
+from tkinter import filedialog
 import customtkinter as ctk
 from datetime import datetime
 import pytz
-from tkinter import filedialog
 import os
 from config import OPENAI_API_KEY, UI_CONFIG
 from resume_matcher import ResumeJobMatcher
@@ -15,8 +15,9 @@ class ModernInterviewGeneratorUI:
         self.setup_window()
         self.setup_components()
         self.initialize_processors()
-        self.resume_matcher = ResumeJobMatcher(OPENAI_API_KEY)  # Pass the API key
+        self.resume_matcher = ResumeJobMatcher(OPENAI_API_KEY)
         self.simplified_resume_text = None
+        self.simplified_resume_window = None
 
     def setup_window(self):
         """Initialize main window and configure appearance"""
@@ -24,11 +25,8 @@ class ModernInterviewGeneratorUI:
         self.root.title("Interview Question Generator")
         self.root.geometry(UI_CONFIG['WINDOW_SIZE'])
         self.root.minsize(*UI_CONFIG['MIN_WINDOW_SIZE'])
-
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-
-        self.simplified_resume_window = None
 
     def initialize_processors(self):
         """Initialize resume processor and question generator"""
@@ -36,7 +34,6 @@ class ModernInterviewGeneratorUI:
             self.show_error("OpenAI API key not found in environment variables")
             self.root.quit()
             return
-
         self.resume_processor = ResumeProcessor(OPENAI_API_KEY)
         self.question_generator = QuestionGenerator(OPENAI_API_KEY)
         self.uploaded_resume_path = None
@@ -65,37 +62,26 @@ class ModernInterviewGeneratorUI:
         )
         self.header_frame.pack(fill="x", pady=(0, 20))
 
-        # DateTime display with specified format
-        self.datetime_text = ctk.StringVar()
+        # DateTime display
+        current_time = datetime.now(pytz.UTC)
+        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+
         self.datetime_label = ctk.CTkLabel(
             self.header_frame,
-            textvariable=self.datetime_text,
+            text=f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {formatted_time}",
             font=(UI_CONFIG['FONT_FAMILY'], 12),
-            text_color=UI_CONFIG['SUCCESS_COLOR'],
-            anchor="w",
-            justify="left"
+            text_color=UI_CONFIG['SUCCESS_COLOR']
         )
         self.datetime_label.pack(fill="x", padx=20, pady=(15, 5))
 
-        # User info with specified format
+        # User info
         self.user_label = ctk.CTkLabel(
             self.header_frame,
             text="Current User's Login: JignasP",
             font=(UI_CONFIG['FONT_FAMILY'], 12),
-            text_color=UI_CONFIG['SUCCESS_COLOR'],
-            anchor="w",
-            justify="left"
+            text_color=UI_CONFIG['SUCCESS_COLOR']
         )
         self.user_label.pack(fill="x", padx=20, pady=(5, 15))
-
-        self.update_clock()
-
-    def update_clock(self):
-        """Update datetime display with specified format"""
-        current_time = datetime.now(pytz.UTC)
-        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
-        self.datetime_text.set(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {formatted_time}")
-        self.root.after(1000, self.update_clock)
 
     def setup_content_frame(self):
         """Setup main content area"""
@@ -141,23 +127,63 @@ class ModernInterviewGeneratorUI:
         self.resume_label.pack(side="left", padx=20, pady=10)
 
     def setup_job_description_section(self):
-        """Setup job description input section"""
-        self.jd_label = ctk.CTkLabel(
+        """Setup job description input and feedback section"""
+        # Container for JD and feedback
+        self.jd_container = ctk.CTkFrame(
             self.content_frame,
+            fg_color="transparent"
+        )
+        self.jd_container.pack(fill="x", pady=(0, 20))
+
+        # Left side - Job Description
+        self.jd_frame = ctk.CTkFrame(
+            self.jd_container,
+            fg_color="transparent"
+        )
+        self.jd_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
+
+        self.jd_label = ctk.CTkLabel(
+            self.jd_frame,
             text="Enter Job Description:",
             font=(UI_CONFIG['FONT_FAMILY'], 14, "bold")
         )
         self.jd_label.pack(anchor="w", pady=(0, 5))
 
         self.jd_input = ctk.CTkTextbox(
-            self.content_frame,
+            self.jd_frame,
             height=150,
             font=(UI_CONFIG['FONT_FAMILY'], 12),
             border_width=2,
             border_color="#333333",
             corner_radius=8
         )
-        self.jd_input.pack(fill="x", pady=(0, 20))
+        self.jd_input.pack(fill="both", expand=True)
+
+        # Right side - Feedback section for improvements only
+        self.feedback_frame = ctk.CTkFrame(
+            self.jd_container,
+            fg_color=UI_CONFIG['DARK_BG'],
+            corner_radius=10,
+            width=300
+        )
+        self.feedback_frame.pack(side="right", fill="y", padx=(5, 0))
+        self.feedback_frame.pack_propagate(False)
+
+        self.feedback_title = ctk.CTkLabel(
+            self.feedback_frame,
+            text="Areas for Improvement",
+            font=(UI_CONFIG['FONT_FAMILY'], 14, "bold")
+        )
+        self.feedback_title.pack(padx=15, pady=(10, 5))
+
+        self.feedback_text = ctk.CTkTextbox(
+            self.feedback_frame,
+            font=(UI_CONFIG['FONT_FAMILY'], 12),
+            height=150,  # Match job description height
+            wrap="word"
+        )
+        self.feedback_text.pack(fill="both", padx=15, pady=10)
+
 
     def setup_buttons(self):
         """Setup action buttons"""
@@ -200,7 +226,7 @@ class ModernInterviewGeneratorUI:
 
     def setup_output_section(self):
         """Setup output display section"""
-
+        # Match indicator section
         self.match_frame = ctk.CTkFrame(
             self.content_frame,
             fg_color=UI_CONFIG['DARK_BG'],
@@ -235,7 +261,7 @@ class ModernInterviewGeneratorUI:
         )
         self.match_level.pack(side="left", padx=20, pady=10)
 
-
+        # Question output section
         self.output_frame = ctk.CTkFrame(
             self.content_frame,
             fg_color=UI_CONFIG['DARK_BG'],
@@ -246,78 +272,9 @@ class ModernInterviewGeneratorUI:
         self.qa_output = ctk.CTkTextbox(
             self.output_frame,
             font=(UI_CONFIG['FONT_FAMILY'], 12),
-            border_width=0,
             wrap="word"
         )
         self.qa_output.pack(fill="both", expand=True, padx=10, pady=10)
-
-    def update_status(self, message: str, status_type: str = "info"):
-        """Update status label with appropriate color"""
-        colors = {
-            "success": UI_CONFIG['SUCCESS_COLOR'],
-            "warning": UI_CONFIG['WARNING_COLOR'],
-            "error": UI_CONFIG['ERROR_COLOR'],
-            "info": UI_CONFIG['DISABLED_COLOR']
-        }
-        self.resume_label.configure(
-            text=message,
-            text_color=colors.get(status_type, colors["info"])
-        )
-        self.root.update()
-
-    def update_match_indicator(self):
-        """Update the match indicator based on current resume and job description"""
-        if not self.simplified_resume_text:
-            return
-
-        job_description = self.jd_input.get("1.0", tk.END).strip()
-        if not job_description:
-            return
-
-        try:
-            # Show loading state
-            self.match_percentage.configure(
-                text="Analyzing...",
-                text_color="white"
-            )
-            self.match_level.configure(
-                text="LOADING",
-                fg_color="#666666",  # Grey color for loading
-                text_color="white"
-            )
-            self.root.update()
-
-            match_percentage, match_level = self.resume_matcher.calculate_match(
-                self.simplified_resume_text,
-                job_description
-            )
-
-            # Update percentage
-            self.match_percentage.configure(
-                text=f"{match_percentage:.1f}%",
-                text_color="white"
-            )
-
-            # Update level indicator
-            self.match_level.configure(
-                text=match_level.upper(),
-                fg_color=UI_CONFIG['MATCH_COLORS'][match_level],
-                text_color="white"
-            )
-
-        except Exception as e:
-            print(f"Error updating match indicator: {str(e)}")
-            self.match_percentage.configure(
-                text="Error",
-                text_color=UI_CONFIG['ERROR_COLOR']
-            )
-            self.match_level.configure(
-                text="ERROR",
-                fg_color="#666666",
-                text_color="white"
-            )
-        finally:
-            self.root.update()
 
     def upload_resume(self):
         """Handle resume upload and processing"""
@@ -333,16 +290,18 @@ class ModernInterviewGeneratorUI:
             self.uploaded_resume_path = file_path
             filename = os.path.basename(file_path)
 
+            self.update_status("Processing resume...", "info")
+            self.root.update()
+
             simplified = self.resume_processor.process_pdf(
                 file_path,
                 status_callback=self.update_status
             )
 
             if simplified:
-                self.simplified_resume_text = simplified  # Store the processed text
+                self.simplified_resume_text = simplified
                 self.update_status(f"Uploaded: {filename}", "success")
                 self.view_resume_button.configure(state="normal")
-                # Update match if job description exists
                 self.update_match_indicator()
             else:
                 self.update_status("Error processing resume", "error")
@@ -364,53 +323,137 @@ class ModernInterviewGeneratorUI:
             self.update_status("Could not retrieve simplified resume", "error")
             return
 
-        # Close existing window if open
         if self.simplified_resume_window:
-            try:
-                self.simplified_resume_window.destroy()
-            except:
-                pass
+            self.simplified_resume_window.destroy()
 
-        # Create new popup window
         self.simplified_resume_window = ctk.CTkToplevel(self.root)
         self.simplified_resume_window.title("Simplified Resume")
         self.simplified_resume_window.geometry("800x600")
-        self.simplified_resume_window.minsize(600, 400)
 
-        # Create main frame with padding
-        main_frame = ctk.CTkFrame(self.simplified_resume_window, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Create text widget with styling
         text_widget = ctk.CTkTextbox(
-            main_frame,
+            self.simplified_resume_window,
             font=(UI_CONFIG['FONT_FAMILY'], 12),
-            fg_color=UI_CONFIG['DARK_BG'],
-            text_color="white",
-            corner_radius=8,
             wrap="word"
         )
-        text_widget.pack(fill="both", expand=True)
-
-        # Insert plain text content
-        text_widget.insert(tk.END, simplified)
-
-        # Make read-only
+        text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+        text_widget.insert("1.0", simplified)
         text_widget.configure(state="disabled")
 
-        # Bind window close event
-        self.simplified_resume_window.protocol("WM_DELETE_WINDOW", self.on_popup_close)
+    def update_status(self, message: str, status_type: str = "info"):
+        """Update status label with appropriate color"""
+        colors = {
+            "success": UI_CONFIG['SUCCESS_COLOR'],
+            "warning": UI_CONFIG['WARNING_COLOR'],
+            "error": UI_CONFIG['ERROR_COLOR'],
+            "info": UI_CONFIG['DISABLED_COLOR']
+        }
+        self.resume_label.configure(
+            text=message,
+            text_color=colors.get(status_type, colors["info"])
+        )
+        self.root.update()
 
-    def on_popup_close(self):
-        """Handle popup window closing"""
-        if self.simplified_resume_window:
-            self.simplified_resume_window.destroy()
-            self.simplified_resume_window = None
+    def update_match_indicator(self):
+        """Update match indicator and feedback"""
+        if not self.simplified_resume_text:
+            self.feedback_text.configure(state="normal")
+            self.feedback_text.delete("1.0", tk.END)
+            self.feedback_text.insert("1.0", "Please upload a resume first.")
+            self.feedback_text.configure(state="disabled")
+            self.match_percentage.configure(text="")
+            self.match_level.configure(text="")
+            return
+
+        job_description = self.jd_input.get("1.0", tk.END).strip()
+        if not job_description:
+            self.feedback_text.configure(state="normal")
+            self.feedback_text.delete("1.0", tk.END)
+            self.feedback_text.insert("1.0", "Please enter a job description.")
+            self.feedback_text.configure(state="disabled")
+            self.match_percentage.configure(text="")
+            self.match_level.configure(text="")
+            return
+
+        try:
+            # Show loading state
+            self.match_percentage.configure(
+                text="Analyzing...",
+                text_color="white"
+            )
+            self.match_level.configure(
+                text="LOADING",
+                fg_color="#666666",
+                text_color="white"
+            )
+            self.feedback_text.configure(state="normal")
+            self.feedback_text.delete("1.0", tk.END)
+            self.feedback_text.insert("1.0", "Analyzing...")
+            self.root.update()
+
+            match_percentage, match_level, feedback = self.resume_matcher.calculate_match(
+                self.simplified_resume_text,
+                job_description
+            )
+
+            # Update match indicators
+            self.match_percentage.configure(
+                text=f"{match_percentage:.1f}%",
+                text_color="white"
+            )
+            self.match_level.configure(
+                text=match_level.upper(),
+                fg_color=UI_CONFIG['MATCH_COLORS'][match_level],
+                text_color="white"
+            )
+
+            # Update feedback section
+            self.feedback_text.configure(state="normal")
+            self.feedback_text.delete("1.0", tk.END)
+
+            # Display only drawbacks and improvements
+            if feedback["drawbacks"] or feedback["improvement_areas"]:
+                if feedback["drawbacks"]:
+                    self.feedback_text.insert("1.0", "Areas Needing Attention:\n\n")
+                    for drawback in feedback["drawbacks"]:
+                        self.feedback_text.insert(tk.END, f"• {drawback}\n")
+
+                if feedback["improvement_areas"]:
+                    if feedback["drawbacks"]:
+                        self.feedback_text.insert(tk.END, "\n")
+                    self.feedback_text.insert(tk.END, "💡 Improvement Tips:\n\n")
+                    for tip in feedback["improvement_areas"]:
+                        self.feedback_text.insert(tk.END, f"• {tip}\n")
+            else:
+                if match_level == "high":
+                    self.feedback_text.insert(tk.END,
+                                              "✨ Perfect Match!\nYour resume aligns exceptionally well with the job requirements.")
+                else:
+                    self.feedback_text.insert(tk.END, "No specific feedback available.")
+
+            self.feedback_text.configure(state="disabled")
+
+        except Exception as e:
+            print(f"Error updating match indicator: {str(e)}")
+            self.match_percentage.configure(
+                text="Error",
+                text_color=UI_CONFIG['ERROR_COLOR']
+            )
+            self.match_level.configure(
+                text="ERROR",
+                fg_color="#666666",
+                text_color="white"
+            )
+            self.feedback_text.configure(state="normal")
+            self.feedback_text.delete("1.0", tk.END)
+            self.feedback_text.insert("1.0", "Error analyzing resume match")
+            self.feedback_text.configure(state="disabled")
+        finally:
+            self.root.update()
 
     def generate_question(self):
-        """Generate interview questions based on job description"""
-
+        """Generate interview questions"""
         self.update_match_indicator()
+
         job_description = self.jd_input.get("1.0", tk.END).strip()
         if not job_description:
             self.qa_output.delete("1.0", tk.END)
@@ -456,9 +499,19 @@ class ModernInterviewGeneratorUI:
         )
         button.pack(pady=(0, 20))
 
+    def update_clock(self):
+        """Update datetime display"""
+        current_time = datetime.now(pytz.UTC)
+        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        self.datetime_label.configure(
+            text=f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {formatted_time}"
+        )
+        self.root.after(1000, self.update_clock)
+
     def run(self):
         """Start the application"""
         try:
+            self.update_clock()  # Start the clock update
             self.root.mainloop()
         except Exception as e:
             print(f"Application error: {str(e)}")
