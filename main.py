@@ -77,7 +77,7 @@ class ModernInterviewGeneratorUI:
         # User info
         self.user_label = ctk.CTkLabel(
             self.header_frame,
-            text="Current User's Login: JignasP",
+            text="Current User's Login: Username",
             font=(UI_CONFIG['FONT_FAMILY'], 12),
             text_color=UI_CONFIG['SUCCESS_COLOR']
         )
@@ -159,7 +159,7 @@ class ModernInterviewGeneratorUI:
         )
         self.jd_input.pack(fill="both", expand=True)
 
-        # Right side - Feedback section for improvements only
+        # Right side - Feedback section
         self.feedback_frame = ctk.CTkFrame(
             self.jd_container,
             fg_color=UI_CONFIG['DARK_BG'],
@@ -171,7 +171,7 @@ class ModernInterviewGeneratorUI:
 
         self.feedback_title = ctk.CTkLabel(
             self.feedback_frame,
-            text="Areas for Improvement",
+            text="Discrepancies And Additional Skills",
             font=(UI_CONFIG['FONT_FAMILY'], 14, "bold")
         )
         self.feedback_title.pack(padx=15, pady=(10, 5))
@@ -184,11 +184,32 @@ class ModernInterviewGeneratorUI:
         )
         self.feedback_text.pack(fill="both", padx=15, pady=10)
 
-
     def setup_buttons(self):
         """Setup action buttons"""
         self.buttons_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
         self.buttons_frame.pack(fill="x", pady=(0, 20))
+
+        # Add question source selection
+        self.source_label = ctk.CTkLabel(
+            self.buttons_frame,
+            text="Generate questions based on:",
+            font=(UI_CONFIG['FONT_FAMILY'], 12)
+        )
+        self.source_label.pack(side="left", padx=(0, 10))
+
+        # Create a StringVar to store the selected option
+        self.question_source = tk.StringVar(value="both")
+
+        # Create a dropdown/combobox for selection
+        self.source_dropdown = ctk.CTkOptionMenu(
+            self.buttons_frame,
+            values=["Job Description Only", "Resume Only", "Both"],
+            variable=self.question_source,
+            font=(UI_CONFIG['FONT_FAMILY'], 12),
+            width=150,
+            height=UI_CONFIG['BUTTON_HEIGHT']
+        )
+        self.source_dropdown.pack(side="left", padx=(0, 20))
 
         self.generate_button = ctk.CTkButton(
             self.buttons_frame,
@@ -411,22 +432,22 @@ class ModernInterviewGeneratorUI:
             self.feedback_text.delete("1.0", tk.END)
 
             # Display only drawbacks and improvements
-            if feedback["drawbacks"] or feedback["improvement_areas"]:
-                if feedback["drawbacks"]:
-                    self.feedback_text.insert("1.0", "Areas Needing Attention:\n\n")
-                    for drawback in feedback["drawbacks"]:
+            if feedback["Discrepancies"] or feedback["Skills"]:
+                if feedback["Discrepancies"]:
+                    self.feedback_text.insert("1.0", "Discrepancies:\n\n")
+                    for drawback in feedback["Discrepancies"]:
                         self.feedback_text.insert(tk.END, f"• {drawback}\n")
 
-                if feedback["improvement_areas"]:
-                    if feedback["drawbacks"]:
+                if feedback["Skills"]:
+                    if feedback["Discrepancies"]:
                         self.feedback_text.insert(tk.END, "\n")
-                    self.feedback_text.insert(tk.END, "💡 Improvement Tips:\n\n")
-                    for tip in feedback["improvement_areas"]:
+                    self.feedback_text.insert(tk.END, "Additional Skills:\n\n")
+                    for tip in feedback["Skills"]:
                         self.feedback_text.insert(tk.END, f"• {tip}\n")
             else:
                 if match_level == "high":
                     self.feedback_text.insert(tk.END,
-                                              "✨ Perfect Match!\nYour resume aligns exceptionally well with the job requirements.")
+                                              " Perfect Match!\nResume aligns exceptionally well with the job requirements.")
                 else:
                     self.feedback_text.insert(tk.END, "No specific feedback available.")
 
@@ -455,9 +476,17 @@ class ModernInterviewGeneratorUI:
         self.update_match_indicator()
 
         job_description = self.jd_input.get("1.0", tk.END).strip()
-        if not job_description:
+        selected_source = self.source_dropdown.get()
+
+        # Validate inputs based on selection
+        if selected_source in ["Job Description Only", "Both"] and not job_description:
             self.qa_output.delete("1.0", tk.END)
             self.qa_output.insert("1.0", "Please enter a job description.")
+            return
+
+        if selected_source in ["Resume Only", "Both"] and not self.simplified_resume_text:
+            self.qa_output.delete("1.0", tk.END)
+            self.qa_output.insert("1.0", "Please upload a resume.")
             return
 
         # Clear previous output
@@ -466,7 +495,11 @@ class ModernInterviewGeneratorUI:
         self.root.update()
 
         try:
-            response = self.question_generator.generate_questions(job_description)
+            response = self.question_generator.generate_questions(
+                job_description=job_description,
+                resume_text=self.simplified_resume_text,
+                source_type=selected_source
+            )
             self.qa_output.delete("1.0", tk.END)
             self.qa_output.insert("1.0", response)
         except Exception as e:
