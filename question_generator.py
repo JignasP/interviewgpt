@@ -36,7 +36,7 @@ Answer:
                 """
             else:  # Both
                 prompt = f"""Generate any 3 {self.difficulty_level} interview questions to be asked to the candidate that assess how well the candidate's background matches the job requirements.
-                Include simple answers that a non-technical HR can understand. Give in Swedish.
+                Include simple answers that a non-technical HR can understand. 
                 
                 Job Description: {job_description}
                 
