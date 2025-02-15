@@ -1,6 +1,5 @@
 openai
 rich
-tkinter
 python-dotenv
 PyPDF2
 customtkinter
