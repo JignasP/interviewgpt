@@ -1,4 +1,4 @@
-"""Main application file"""
+"""Main application file""" 
 import tkinter as tk
 from tkinter import filedialog
 import customtkinter as ctk
