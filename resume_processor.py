@@ -1,7 +1,8 @@
 """Module for handling resume processing with improved markdown display"""
 import json
 from openai import OpenAI
-from typing import Optional, Callable
+from typing import Optional, Callable, List, Dict, Any
+import threading
 
 from rich.console import Console
 import tkinter as tk
@@ -10,6 +11,7 @@ import tkinter.scrolledtext as tkscroll
 import re
 import os
 from dotenv import load_dotenv
+import time
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,19 +38,6 @@ class SimpleMarkdownText(tkscroll.ScrolledText):
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    '''
-        def display_text(self, content: str) -> None:
-            """Display plain text content using the enhanced text widget"""
-            if not self.root:
-                self._setup_gui()
-
-            if self.text_widget:
-                self.text_widget.delete(1.0, tk.END)
-                self.text_widget.insert(tk.END, content)
-                self.root.mainloop()
-    '''
-
-
     def display_text(self, content: str) -> None:
         """Display markdown content using the enhanced markdown widget"""
         if not self.root:
@@ -56,9 +45,6 @@ class SimpleMarkdownText(tkscroll.ScrolledText):
 
         if self.text_widget:
             self.text_widget.delete(1.0, tk.END)
-
-
-
 
             content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)  # Bold
             content = re.sub(r'## (.*?)\n', r'<h2>\1</h2>\n', content)  # Headers
@@ -106,7 +92,7 @@ class ResumeProcessor:
             if status_callback:
                 status_callback("Analyzing resume...", "info")
 
-            analyzed_text = self._analyze_text(text)
+            analyzed_text = self._analyze_text(text, status_callback)
             if analyzed_text:
                 self._cache_result(pdf_path, analyzed_text)
                 self._save_markdown(analyzed_text, pdf_path)  # Save new analysis as markdown
@@ -134,35 +120,76 @@ class ResumeProcessor:
             print(f"Error extracting PDF text: {str(e)}")
             return None
 
-    def _analyze_text(self, text: str) -> Optional[str]:
-        """Analyze resume text using OpenAI API with improved markdown formatting"""
+    def _analyze_text(self, text: str, status_callback: Optional[Callable] = None) -> Optional[str]:
+        """Analyze resume text using OpenAI API with improved non-blocking approach"""
         try:
             chunk_size = 4000
             chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+            total_chunks = len(chunks)
 
-            analyzed_parts = []
-            for chunk in chunks:
-                response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a helpful resume analyzer."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Analyze this resume text and format the response : {chunk}"
-                        }
-                    ],
-                    temperature=0.2,
-                    max_tokens=1500
-                )
-                analyzed_text = response.choices[0].message.content.strip()
-                # Ensure section headers are properly formatted
-                analyzed_text = re.sub(r'^## ([^*])', r'## **\1**', analyzed_text, flags=re.MULTILINE)
-                analyzed_parts.append(analyzed_text)
+            # Create a list to store results
+            results = [None] * total_chunks
 
-            return "\n\n".join(analyzed_parts)
+            # Function to process a chunk and update UI
+            def process_chunk(chunk_index, chunk_text):
+                try:
+                    # Update status before processing
+                    if status_callback:
+                        status_callback(f"Processing chunk {chunk_index + 1}/{total_chunks}...", "info")
+
+                    # Process the chunk with OpenAI
+                    response = self.client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a helpful resume analyzer."
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Analyze this resume text and format the response : {chunk_text}"
+                            }
+                        ],
+                        temperature=0.2,
+                        max_tokens=1500
+                    )
+
+                    analyzed_text = response.choices[0].message.content.strip()
+                    # Ensure section headers are properly formatted
+                    analyzed_text = re.sub(r'^## ([^*])', r'## **\1**', analyzed_text, flags=re.MULTILINE)
+
+                    # Store result at correct index
+                    results[chunk_index] = analyzed_text
+
+                    # Update UI after processing
+                    if status_callback:
+                        completed = sum(1 for r in results if r is not None)
+                        status_callback(f"Analyzed {completed}/{total_chunks} chunks ({int(completed/total_chunks*100)}%)", "info")
+
+                    # Process Tkinter events to keep UI responsive
+                    if hasattr(tk, '_default_root') and tk._default_root:
+                        tk._default_root.update()
+
+                except Exception as e:
+                    print(f"Error processing chunk {chunk_index}: {str(e)}")
+                    results[chunk_index] = f"Error processing chunk {chunk_index}: {str(e)}"
+
+            # Process chunks one by one while keeping UI responsive
+            for i, chunk in enumerate(chunks):
+                # Create thread for processing
+                process_thread = threading.Thread(target=process_chunk, args=(i, chunk))
+                process_thread.daemon = True
+                process_thread.start()
+
+                # Wait for thread to complete
+                while process_thread.is_alive():
+                    # Keep UI responsive while waiting
+                    if hasattr(tk, '_default_root') and tk._default_root:
+                        tk._default_root.update()
+                    time.sleep(0.1)  # Short sleep to reduce CPU usage
+
+            # Combine all results (filter out None values just in case)
+            return "\n\n".join([r for r in results if r])
 
         except Exception as e:
             print(f"Error analyzing text: {str(e)}")
@@ -184,24 +211,6 @@ class ResumeProcessor:
         # Add markdown text widget
         self.markdown_text = SimpleMarkdownText(main_frame, width=80, height=30, font=default_font)
         self.markdown_text.pack(fill="both", expand=True)
-
-    '''
-        def display_markdown(self, content: str) -> None:
-            """Display markdown content using the enhanced markdown widget"""
-            if not self.root:
-                self._setup_gui()
-
-            if self.markdown_text:
-                self.markdown_text.delete(1.0, tk.END)
-
-                # Transform content to markdown
-                content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)  # Bold
-                content = re.sub(r'## (.*?)\n', r'<h2>\1</h2>\n', content)  # Headers
-                content = re.sub(r'\* (.*?)\n', r'<li>\1</li>\n', content)  # Lists
-
-                self.markdown_text.insert(tk.END, content)
-                self.root.mainloop()
-    '''
 
     def _get_cached(self, pdf_path: str) -> Optional[str]:
         """Get cached analysis result"""
